@@ -8,17 +8,6 @@ class RestApiUtilTest extends Specification {
 
     RestApiUtil restApiUtil = new RestApiUtil()
 
-    def "Login property is correctly added to uri variables"() {
-        given:
-        def login = "testLogin"
-
-        when:
-        def result = restApiUtil.setUriVariables( login )
-
-        then:
-        result.get( "login" ) == login
-    }
-
     def "Uri should be composed from given url and login"() {
         given:
         def url = "https://testUrl.com/{login}"
