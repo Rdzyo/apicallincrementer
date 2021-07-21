@@ -1,6 +1,6 @@
 package rtarnowski.apcallincrementer.util
 
-import org.springframework.beans.factory.annotation.Autowired
+
 import rtarnowski.apicallincrementer.util.RestApiUtil
 import spock.lang.Specification
 
