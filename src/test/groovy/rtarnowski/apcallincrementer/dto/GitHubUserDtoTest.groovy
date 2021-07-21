@@ -15,9 +15,11 @@ class GitHubUserDtoTest extends Specification {
                 name: "testName",
                 avatarUrl: "testUrl.com",
                 createdAt: LocalDateTime.now(),
+                followers: 0,
+                repos: 20
         )
-        int followersCount = 0
-        int reposCount = 2
+        def followersCount = testGitHubUser.followers
+        def reposCount = testGitHubUser.repos
 
         when:
         testGitHubUser.setCalculations( followersCount, reposCount )
@@ -33,9 +35,11 @@ class GitHubUserDtoTest extends Specification {
                 name: "testName",
                 avatarUrl: "testUrl.com",
                 createdAt: LocalDateTime.now(),
+                followers: 20,
+                repos: 30
         )
-        int followersCount = 10
-        int reposCount = 2
+        def followersCount = testGitHubUser.followers
+        def reposCount = testGitHubUser.repos
 
         when:
         testGitHubUser.setCalculations( followersCount, reposCount )
