@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +11,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import rtarnowski.apicallincrementer.dto.GitHubUserDto;
 import rtarnowski.apicallincrementer.dto.RequestCounterDto;
+import rtarnowski.apicallincrementer.exception.UserNotFoundException;
 import rtarnowski.apicallincrementer.model.RequestCounter;
 import rtarnowski.apicallincrementer.repository.RequestCounterRepository;
 import rtarnowski.apicallincrementer.util.RestApiUtil;
@@ -36,37 +36,37 @@ public class RequestCounterService {
 
     @Transactional
     public ResponseEntity<GitHubUserDto> getGitHubUserInfo( String login ) {
+        // Get GitHub user info
         var gitHubUserInfoResponse = callGitHubUserInfoApi( login );
         var gitHubUserInfo = gitHubUserInfoResponse.getBody();
-        if ( gitHubUserInfoResponse.getStatusCode() == HttpStatus.BAD_REQUEST ) {
-            return gitHubUserInfoResponse;
-        }
+        // Get followers count for calculations field
         var gitHubUserFollowersCount = getGitHubUserFollowersOrReposCount( login, gitHubUserFollowersUrl );
+        // Get repos count for calculations field
         var gitHubUserReposCount = getGitHubUserFollowersOrReposCount( login, gitHubUserReposUrl );
         if ( Objects.nonNull( gitHubUserInfo ) ) {
+            // Set calculations field in GitHubUserDto
             gitHubUserInfoResponse = updateCalculationsData( gitHubUserFollowersCount, gitHubUserReposCount, gitHubUserInfo );
         }
+        // Create new RequestCounter entity or increment requestCount in existing one
         saveOrUpdateRequestCounterData( login );
         return gitHubUserInfoResponse;
     }
 
     private ResponseEntity<GitHubUserDto> callGitHubUserInfoApi( String login ) {
-        var uriVariables = restApiUtil.setUriVariables( login );
         var url = restApiUtil.composeUrl( gitHubUserInfoUrl, login );
-        var gitHubUserInfo = ResponseEntity.ok( new GitHubUserDto() );
+        ResponseEntity<GitHubUserDto> gitHubUserInfo;
         try {
-            gitHubUserInfo = restTemplate.getForEntity( url, GitHubUserDto.class, uriVariables );
+            gitHubUserInfo = restTemplate.getForEntity( url, GitHubUserDto.class );
         } catch ( RestClientException ex ) {
             log.info( "Can't find user with login {}", login );
-            return ResponseEntity.badRequest().body( new GitHubUserDto() );
+            throw new UserNotFoundException();
         }
         return gitHubUserInfo;
     }
 
     private Integer getGitHubUserFollowersOrReposCount( String login, String gitHubUrl ) {
-        var uriVariables = restApiUtil.setUriVariables( login );
         var url = restApiUtil.composeUrl( gitHubUrl, login );
-        var response = restTemplate.getForEntity( url, Object[].class, uriVariables );
+        var response = restTemplate.getForEntity( url, Object[].class );
         var responseBody = response.getBody();
         if ( Objects.nonNull( responseBody ) ) {
             return responseBody.length;
