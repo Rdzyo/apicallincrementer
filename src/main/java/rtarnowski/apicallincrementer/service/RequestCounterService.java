@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import rtarnowski.apicallincrementer.dto.GitHubUserDto;
@@ -29,30 +30,26 @@ public class RequestCounterService {
     private final ModelMapper modelMapper;
     @Value("${github.user.info.url}")
     private String gitHubUserInfoUrl;
-    @Value("${github.user.followers.url}")
-    private String gitHubUserFollowersUrl;
-    @Value("${github.user.repos.url}")
-    private String gitHubUserReposUrl;
 
     @Transactional
-    public ResponseEntity<GitHubUserDto> getGitHubUserInfo( String login ) {
+    public GitHubUserDto getGitHubUserInfo( String login ) {
         // Get GitHub user info
-        var gitHubUserInfoResponse = callGitHubUserInfoApi( login );
-        var gitHubUserInfo = gitHubUserInfoResponse.getBody();
-        // Get followers count for calculations field
-        var gitHubUserFollowersCount = getGitHubUserFollowersOrReposCount( login, gitHubUserFollowersUrl );
-        // Get repos count for calculations field
-        var gitHubUserReposCount = getGitHubUserFollowersOrReposCount( login, gitHubUserReposUrl );
-        if ( Objects.nonNull( gitHubUserInfo ) ) {
-            // Set calculations field in GitHubUserDto
-            gitHubUserInfoResponse = updateCalculationsData( gitHubUserFollowersCount, gitHubUserReposCount, gitHubUserInfo );
-        }
+        var gitHubUserInfo = callGitHubUserInfoApi( login );
+        var gitHubUserFollowersCount = gitHubUserInfo.getFollowers();
+        var gitHubUserReposCount = gitHubUserInfo.getRepos();
+        gitHubUserInfo.setCalculations( gitHubUserFollowersCount, gitHubUserReposCount );
+        // Check if user already exists
+        var requestCounterEntity = requestCounterRepository.findByLogin( login );
         // Create new RequestCounter entity or increment requestCount in existing one
-        saveOrUpdateRequestCounterData( login );
-        return gitHubUserInfoResponse;
+        if ( requestCounterEntity.isPresent() ) {
+            updateRequestCounter( requestCounterEntity.get() );
+        } else {
+            createRequestCounter( login );
+        }
+        return gitHubUserInfo;
     }
 
-    private ResponseEntity<GitHubUserDto> callGitHubUserInfoApi( String login ) {
+    private GitHubUserDto callGitHubUserInfoApi( String login ) {
         var url = restApiUtil.composeUrl( gitHubUserInfoUrl, login );
         ResponseEntity<GitHubUserDto> gitHubUserInfo;
         try {
@@ -61,36 +58,19 @@ public class RequestCounterService {
             log.info( "Can't find user with login {}", login );
             throw new UserNotFoundException();
         }
-        return gitHubUserInfo;
+        return Objects.requireNonNull( gitHubUserInfo.getBody() );
     }
 
-    private Integer getGitHubUserFollowersOrReposCount( String login, String gitHubUrl ) {
-        var url = restApiUtil.composeUrl( gitHubUrl, login );
-        var response = restTemplate.getForEntity( url, Object[].class );
-        var responseBody = response.getBody();
-        if ( Objects.nonNull( responseBody ) ) {
-            return responseBody.length;
-        } else {
-            return 0;
-        }
+    private void updateRequestCounter( RequestCounter requestCounterEntity ) {
+        var requestCount = requestCounterEntity.getRequestCount() + 1;
+        requestCounterEntity.setRequestCount( requestCount );
+        requestCounterRepository.save( requestCounterEntity );
     }
 
-    private void saveOrUpdateRequestCounterData( String login ) {
-        var requestCounterEntity = requestCounterRepository.findByLogin( login );
-        if ( requestCounterEntity.isPresent() ) {
-            var requestCount = requestCounterEntity.get().getRequestCount() + 1;
-            requestCounterEntity.get().setRequestCount( requestCount );
-            requestCounterRepository.save( requestCounterEntity.get() );
-        } else {
-            var requestCounterDto = new RequestCounterDto();
-            requestCounterDto.setLogin( login );
-            var requestCounterEntityToCreate = modelMapper.map( requestCounterDto, RequestCounter.class );
-            requestCounterRepository.save( requestCounterEntityToCreate );
-        }
-    }
-
-    private ResponseEntity<GitHubUserDto> updateCalculationsData( int followersCount, int reposCount, GitHubUserDto gitHubUserInfo ) {
-        gitHubUserInfo.setCalculations( followersCount, reposCount );
-        return ResponseEntity.ok( gitHubUserInfo );
+    private void createRequestCounter( String login ) {
+        var requestCounterDto = new RequestCounterDto();
+        requestCounterDto.setLogin( login );
+        var requestCounterEntityToCreate = modelMapper.map( requestCounterDto, RequestCounter.class );
+        requestCounterRepository.save( requestCounterEntityToCreate );
     }
 }

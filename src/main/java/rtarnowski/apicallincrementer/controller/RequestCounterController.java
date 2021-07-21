@@ -2,7 +2,6 @@ package rtarnowski.apicallincrementer.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import rtarnowski.apicallincrementer.dto.GitHubUserDto;
 import rtarnowski.apicallincrementer.service.RequestCounterService;
@@ -18,7 +17,7 @@ public class RequestCounterController {
 
     @GetMapping("/users/{login}")
     @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<GitHubUserDto> getGitHubUserInfo( @PathVariable String login ) {
+    public GitHubUserDto getGitHubUserInfo( @PathVariable String login ) {
         return requestCounterService.getGitHubUserInfo( login );
     }
 }

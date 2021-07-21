@@ -1,5 +1,6 @@
 package rtarnowski.apicallincrementer.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -15,6 +16,10 @@ public class GitHubUserDto {
     private String avatarUrl;
     @JsonProperty("created_at")
     private String createdAt;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private int followers;
+    @JsonProperty(value = "public_repos",access = JsonProperty.Access.WRITE_ONLY)
+    private int repos;
     @Setter(AccessLevel.NONE)
     private Double calculations;
 
