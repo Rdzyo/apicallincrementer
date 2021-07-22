@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import rtarnowski.apicallincrementer.dto.GitHubUserDto;
@@ -33,6 +32,7 @@ public class RequestCounterService {
 
     @Transactional
     public GitHubUserDto getGitHubUserInfo( String login ) {
+        checkIfLoginIsNotEmptyOrNull( login );
         // Get GitHub user info
         var gitHubUserInfo = callGitHubUserInfoApi( login );
         var gitHubUserFollowersCount = gitHubUserInfo.getFollowers();
@@ -72,5 +72,11 @@ public class RequestCounterService {
         requestCounterDto.setLogin( login );
         var requestCounterEntityToCreate = modelMapper.map( requestCounterDto, RequestCounter.class );
         requestCounterRepository.save( requestCounterEntityToCreate );
+    }
+
+    private void checkIfLoginIsNotEmptyOrNull(String login) {
+        if( login == null || login.trim().isEmpty()) {
+            throw new IllegalArgumentException("Login variable cannot be empty or null");
+        }
     }
 }
